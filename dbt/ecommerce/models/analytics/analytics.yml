@@ -1,0 +1,62 @@
+version: 2
+
+models:
+
+  - name: fct_sales
+    description: Main sales fact table used by analytics applications.
+
+    columns:
+
+      - name: source_row_id
+        data_tests:
+          - not_null
+          - unique
+
+      - name: order_id
+        data_tests:
+          - not_null
+
+
+  - name: sales_by_category
+    description: Aggregated sales metrics by product category.
+
+    columns:
+
+      - name: category
+        data_tests:
+          - not_null
+          - unique
+
+      - name: total_records
+        data_tests:
+          - not_null
+
+      - name: total_quantity
+        data_tests:
+          - not_null
+
+      - name: total_sales
+        data_tests:
+          - not_null
+
+
+  - name: sales_summary
+    description: Overall sales summary metrics.
+
+    columns:
+
+      - name: total_records
+        data_tests:
+          - not_null
+
+      - name: total_orders
+        data_tests:
+          - not_null
+
+      - name: total_quantity
+        data_tests:
+          - not_null
+
+      - name: total_sales
+        data_tests:
+          - not_null

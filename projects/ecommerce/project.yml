@@ -1,0 +1,35 @@
+project_id: ecommerce
+
+profile: local_kubernetes
+
+source:
+  type: csv
+  file: "Amazon Sale Report.csv"
+  path: "/data/raw/ecommerce/Amazon Sale Report.csv"
+
+storage:
+  type: local
+  raw_path: "/data/raw/ecommerce"
+
+warehouse:
+  type: postgres
+  host: postgres
+  port: 5432
+  database: ecommerce
+  raw_schema: raw
+  staging_schema: staging
+  analytics_schema: analytics
+
+transformation:
+  engine: dbt
+
+serving:
+  api: true
+  dashboard: true
+
+cache:
+  enabled: true
+  engine: redis
+
+scaling:
+  hpa: true

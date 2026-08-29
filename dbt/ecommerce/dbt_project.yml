@@ -1,0 +1,22 @@
+name: ecommerce
+version: "1.0.0"
+
+profile: ecommerce
+
+model-paths:
+  - models
+
+clean-targets:
+  - target
+  - dbt_packages
+
+models:
+  ecommerce:
+
+    staging:
+      +schema: staging
+      +materialized: view
+
+    analytics:
+      +schema: analytics
+      +materialized: table

@@ -1,0 +1,8 @@
+pandas>=2.2,<3
+psycopg2-binary>=2.9,<3
+python-dotenv>=1,<2
+
+dbt-core==1.12.2
+dbt-postgres==1.11.0
+
+redis>=5,<7

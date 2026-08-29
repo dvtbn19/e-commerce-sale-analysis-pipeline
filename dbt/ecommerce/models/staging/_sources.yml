@@ -1,0 +1,10 @@
+version: 2
+
+sources:
+  - name: ecommerce_raw
+    database: ecommerce
+    schema: raw
+
+    tables:
+      - name: amazon_sales
+        description: Raw Amazon sales data loaded from Amazon Sale Report.csv

@@ -1,0 +1,162 @@
+name: ecommerce-airflow
+
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: Dockerfile
+
+  env_file:
+    - ../.env
+
+  environment:
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: >-
+      ${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN:?Set AIRFLOW__DATABASE__SQL_ALCHEMY_CONN}
+
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+
+    # Local development only
+    AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS: "true"
+
+    # Airflow 3 task execution API
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: >-
+      http://airflow-api-server:8080/execution/
+
+    AIRFLOW__API__BASE_URL: "http://localhost:8080"
+
+    # These must be identical across Airflow components
+    AIRFLOW__API_AUTH__JWT_SECRET: >-
+      ${AIRFLOW__API_AUTH__JWT_SECRET:?Set AIRFLOW__API_AUTH__JWT_SECRET}
+
+    AIRFLOW__API__SECRET_KEY: >-
+      ${AIRFLOW__API__SECRET_KEY:?Set AIRFLOW__API__SECRET_KEY}
+
+    # Override values from root .env because Airflow
+    # runs inside Docker rather than directly on Windows
+    POSTGRES_HOST: host.docker.internal
+    POSTGRES_PORT: "5434"
+
+    SOURCE_CSV_PATH: >-
+      /opt/project/data/raw/ecommerce/Amazon Sale Report.csv
+
+    PYTHONPATH: /opt/project
+
+    REDIS_HOST: host.docker.internal
+    REDIS_PORT: "6380"
+    REDIS_DB: "0"
+
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./logs:/opt/airflow/logs
+    - ./plugins:/opt/airflow/plugins
+
+    - ../services:/opt/project/services:ro
+    - ../data:/opt/project/data:ro
+    - ../dbt:/opt/project/dbt
+
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+
+
+services:
+
+  airflow-db:
+    image: postgres:16
+
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD:?Set AIRFLOW_DB_PASSWORD}
+      POSTGRES_DB: airflow
+
+    volumes:
+      - airflow_metadata:/var/lib/postgresql/data
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U airflow -d airflow
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+    restart: unless-stopped
+
+
+  airflow-init:
+    <<: *airflow-common
+
+    command:
+      - bash
+      - -c
+      - airflow db migrate
+
+    depends_on:
+      airflow-db:
+        condition: service_healthy
+
+    restart: "no"
+
+
+  airflow-api-server:
+    <<: *airflow-common
+
+    command: api-server
+
+    ports:
+      - "8080:8080"
+
+    depends_on:
+      airflow-db:
+        condition: service_healthy
+
+      airflow-init:
+        condition: service_completed_successfully
+
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - --fail
+        - http://localhost:8080/api/v2/monitor/health
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+    restart: unless-stopped
+
+
+  airflow-scheduler:
+    <<: *airflow-common
+
+    command: scheduler
+
+    depends_on:
+      airflow-db:
+        condition: service_healthy
+
+      airflow-init:
+        condition: service_completed_successfully
+
+    restart: unless-stopped
+
+
+  airflow-dag-processor:
+    <<: *airflow-common
+
+    command: dag-processor
+
+    depends_on:
+      airflow-db:
+        condition: service_healthy
+
+      airflow-init:
+        condition: service_completed_successfully
+
+    restart: unless-stopped
+
+
+volumes:
+  airflow_metadata:

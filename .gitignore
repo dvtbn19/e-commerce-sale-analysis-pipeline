@@ -1,0 +1,42 @@
+# Environment / secrets
+.env
+.env.*
+!.env.example
+.secrets/
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Data
+data/
+
+# dbt generated files
+dbt/**/target/
+dbt/**/logs/
+dbt/**/dbt_packages/
+dbt/**/.user.yml
+
+# Local Kubernetes secrets
+k8s/**/secret.yml
+
+# Airflow generated files
+airflow/logs/
+airflow/**/__pycache__/
+
+# Frontend
+node_modules/
+dist/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Runtime logs
+logs/

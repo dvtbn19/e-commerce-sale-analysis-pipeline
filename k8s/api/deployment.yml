@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: ecommerce-api
+  namespace: ecommerce
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: ecommerce-api
+
+  template:
+    metadata:
+      labels:
+        app: ecommerce-api
+
+    spec:
+      containers:
+        - name: api
+
+          image: ecommerce-api:v1
+
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - containerPort: 8000
+
+          env:
+            - name: POSTGRES_HOST
+              value: postgres-service
+
+            - name: POSTGRES_PORT
+              value: "5432"
+
+            - name: POSTGRES_DB
+              value: ecommerce
+
+            - name: POSTGRES_USER
+              value: ecommerce
+
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: password
+
+            - name: REDIS_HOST
+              value: redis-service
+
+            - name: REDIS_PORT
+              value: "6379"
