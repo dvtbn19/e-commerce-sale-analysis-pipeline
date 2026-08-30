@@ -8,6 +8,9 @@ metadata:
 spec:
   replicas: 1
 
+  strategy:
+    type: Recreate
+
   selector:
     matchLabels:
       app: postgres
@@ -20,7 +23,6 @@ spec:
     spec:
       containers:
         - name: postgres
-
           image: postgres:16
 
           ports:
@@ -45,6 +47,5 @@ spec:
 
       volumes:
         - name: postgres-storage
-
           persistentVolumeClaim:
             claimName: postgres-pvc
