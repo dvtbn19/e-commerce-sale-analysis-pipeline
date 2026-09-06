@@ -1,0 +1,35 @@
+{{- if .Values.redis.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: redis
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: redis
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+
+spec:
+  replicas: {{ .Values.redis.replicaCount }}
+
+  selector:
+    matchLabels:
+      app: redis
+
+  template:
+    metadata:
+      labels:
+        app: redis
+        app.kubernetes.io/instance: {{ .Release.Name }}
+
+    spec:
+      containers:
+        - name: redis
+          image: "{{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag }}"
+          imagePullPolicy: {{ .Values.redis.image.pullPolicy }}
+
+          ports:
+            - name: redis
+              containerPort: {{ .Values.redis.service.port }}
+{{- end }}

@@ -1,0 +1,24 @@
+{{- if .Values.postgres.enabled }}
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: {{ .Values.postgres.service.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: postgres
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+
+spec:
+  selector:
+    app: postgres
+
+  ports:
+    - name: postgres
+      protocol: TCP
+      port: {{ .Values.postgres.service.port }}
+      targetPort: {{ .Values.postgres.service.port }}
+
+  type: {{ .Values.postgres.service.type }}
+{{- end }}

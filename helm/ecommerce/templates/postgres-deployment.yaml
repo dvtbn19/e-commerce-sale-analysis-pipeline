@@ -1,0 +1,63 @@
+{{- if .Values.postgres.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: postgres
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: postgres
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+
+spec:
+  replicas: {{ .Values.postgres.replicaCount }}
+  strategy:
+    type: {{ .Values.postgres.strategy }}
+
+  selector:
+    matchLabels:
+      app: postgres
+
+  template:
+    metadata:
+      labels:
+        app: postgres
+        app.kubernetes.io/instance: {{ .Release.Name }}
+
+    spec:
+      containers:
+        - name: postgres
+          image: "{{ .Values.postgres.image.repository }}:{{ .Values.postgres.image.tag }}"
+          imagePullPolicy: {{ .Values.postgres.image.pullPolicy }}
+
+          ports:
+            - name: postgres
+              containerPort: {{ .Values.postgres.service.port }}
+
+          env:
+            - name: POSTGRES_DB
+              value: {{ .Values.postgres.auth.database | quote }}
+
+            - name: POSTGRES_USER
+              value: {{ .Values.postgres.auth.username | quote }}
+
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.auth.existingSecret }}
+                  key: {{ .Values.postgres.auth.passwordKey }}
+
+          {{- if .Values.postgres.persistence.enabled }}
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: {{ .Values.postgres.persistence.mountPath }}
+          {{- end }}
+
+      {{- if .Values.postgres.persistence.enabled }}
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: {{ .Values.postgres.persistence.claimName }}
+      {{- end }}
+{{- end }}

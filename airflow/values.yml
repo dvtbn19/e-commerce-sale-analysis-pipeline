@@ -1,0 +1,52 @@
+executor: LocalExecutor
+
+airflowVersion: "3.3.1"
+
+defaultAirflowRepository: ecommerce-airflow
+defaultAirflowTag: "3.3.1"
+
+images:
+  airflow:
+    pullPolicy: IfNotPresent
+
+redis:
+  enabled: false
+
+postgresql:
+  enabled: true
+
+dags:
+  persistence:
+    enabled: false
+
+env:
+  - name: POSTGRES_HOST
+    value: "postgres-service.ecommerce"
+
+  - name: POSTGRES_PORT
+    value: "5432"
+
+  - name: POSTGRES_DB
+    value: "ecommerce"
+
+  - name: POSTGRES_USER
+    value: "ecommerce"
+
+  - name: REDIS_HOST
+    value: "redis-service.ecommerce"
+
+  - name: REDIS_PORT
+    value: "6379"
+
+  - name: REDIS_DB
+    value: "0"
+
+  - name: REDIS_TTL_SECONDS
+    value: "300"
+  - name: SOURCE_CSV_PATH
+    value: "/opt/project/data/raw/ecommerce/Amazon Sale Report.csv"
+
+secret:
+  - envName: POSTGRES_PASSWORD
+    secretName: ecommerce-db-credentials
+    secretKey: password

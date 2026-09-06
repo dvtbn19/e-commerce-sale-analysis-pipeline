@@ -1,0 +1,140 @@
+postgres:
+  enabled: true
+  replicaCount: 1
+  strategy: Recreate
+
+  image:
+    repository: postgres
+    tag: "16"
+    pullPolicy: IfNotPresent
+
+  auth:
+    database: ecommerce
+    username: ecommerce
+    existingSecret: postgres-credentials
+    passwordKey: password
+
+  service:
+    name: postgres-service
+    type: ClusterIP
+    port: 5432
+
+  persistence:
+    enabled: true
+    claimName: postgres-pvc
+    accessMode: ReadWriteOnce
+    size: 5Gi
+    mountPath: /var/lib/postgresql/data
+
+redis:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: redis
+    tag: "7-alpine"
+    pullPolicy: IfNotPresent
+
+  service:
+    name: redis-service
+    type: ClusterIP
+    port: 6379
+
+api:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: ecommerce-api
+    tag: "v6"
+    pullPolicy: IfNotPresent
+
+  containerPort: 8000
+
+  probes:
+    liveness:
+      enabled: true
+      path: /live
+      initialDelaySeconds: 10
+      periodSeconds: 20
+      timeoutSeconds: 3
+      failureThreshold: 3
+
+    readiness:
+      enabled: true
+      path: /ready
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      timeoutSeconds: 3
+      failureThreshold: 3
+
+  service:
+    name: ecommerce-api-service
+    type: NodePort
+    port: 8000
+    targetPort: 8000
+
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+  
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 50
+
+  route:
+    enabled: true
+    name: ecommerce-api-route
+    hostname: api.ecommerce.local
+    path: /
+
+gateway:
+  name: ecommerce-gateway
+  namespace: gateway-system
+
+frontend:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: ecommerce-frontend
+    tag: "v1"
+    pullPolicy: IfNotPresent
+
+  containerPort: 80
+
+  probes:
+    liveness:
+      enabled: true
+      path: /
+      initialDelaySeconds: 5
+      periodSeconds: 20
+      timeoutSeconds: 3
+      failureThreshold: 3
+
+    readiness:
+      enabled: true
+      path: /
+      initialDelaySeconds: 2
+      periodSeconds: 10
+      timeoutSeconds: 3
+      failureThreshold: 3
+
+
+  service:
+    name: ecommerce-frontend-service
+    type: ClusterIP
+    port: 80
+    targetPort: 80
+
+  route:
+    enabled: true
+    name: ecommerce-frontend-route
+    hostname: ecommerce.local
+    path: /

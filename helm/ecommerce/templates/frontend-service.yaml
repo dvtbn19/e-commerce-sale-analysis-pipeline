@@ -1,0 +1,24 @@
+{{- if .Values.frontend.enabled }}
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: {{ .Values.frontend.service.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: ecommerce-frontend
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+
+spec:
+  selector:
+    app: ecommerce-frontend
+
+  ports:
+    - name: http
+      protocol: TCP
+      port: {{ .Values.frontend.service.port }}
+      targetPort: {{ .Values.frontend.service.targetPort }}
+
+  type: {{ .Values.frontend.service.type }}
+{{- end }}

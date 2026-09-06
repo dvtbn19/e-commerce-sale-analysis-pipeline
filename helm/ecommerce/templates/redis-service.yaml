@@ -1,0 +1,24 @@
+{{- if .Values.redis.enabled }}
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: {{ .Values.redis.service.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: redis
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+
+spec:
+  selector:
+    app: redis
+
+  ports:
+    - name: redis
+      protocol: TCP
+      port: {{ .Values.redis.service.port }}
+      targetPort: {{ .Values.redis.service.port }}
+
+  type: {{ .Values.redis.service.type }}
+{{- end }}

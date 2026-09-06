@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: ecommerce-frontend
+  namespace: ecommerce
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: ecommerce-frontend
+
+  template:
+    metadata:
+      labels:
+        app: ecommerce-frontend
+
+    spec:
+      containers:
+        - name: frontend
+          image: ecommerce-frontend:v1
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - name: http
+              containerPort: 80

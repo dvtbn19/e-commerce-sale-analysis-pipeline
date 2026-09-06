@@ -3,4 +3,4 @@ uvicorn[standard]
 sqlalchemy
 psycopg2-binary
 python-dotenv
-redis
+redis==8.1.0

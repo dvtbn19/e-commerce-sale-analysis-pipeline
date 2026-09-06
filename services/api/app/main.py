@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from sqlalchemy import text
 
 from app.db.database import engine
@@ -17,6 +17,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "http://ecommerce.local",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -25,6 +26,27 @@ app.add_middleware(
 
 app.include_router(sales_router)
 
+@app.get("/live")
+def liveness():
+    return {"status": "ok"}
+
+
+@app.get("/ready")
+def readiness():
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Database is not ready",
+        ) from exc
+
+    return {
+        "status": "ready",
+        "database": True,
+    }
 
 @app.get("/")
 def root():

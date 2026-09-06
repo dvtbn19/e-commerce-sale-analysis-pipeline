@@ -1,4 +1,6 @@
 import redis
+from redis.backoff import NoBackoff
+from redis.retry import Retry
 
 from app.core.config import (
     REDIS_HOST,
@@ -14,4 +16,5 @@ redis_client = redis.Redis(
     decode_responses=True,
     socket_connect_timeout=1,
     socket_timeout=1,
+    retry=Retry(NoBackoff(), 0),
 )

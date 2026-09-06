@@ -1,0 +1,85 @@
+{{- if .Values.api.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: ecommerce-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: ecommerce-api
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+
+spec:
+  replicas: {{ .Values.api.replicaCount }}
+
+  selector:
+    matchLabels:
+      app: ecommerce-api
+
+  template:
+    metadata:
+      labels:
+        app: ecommerce-api
+        app.kubernetes.io/instance: {{ .Release.Name }}
+
+    spec:
+      containers:
+        - name: api
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
+          imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+
+          ports:
+            - name: http
+              containerPort: {{ .Values.api.containerPort }}
+
+{{ if .Values.api.probes.liveness.enabled }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.api.probes.liveness.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.api.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.api.probes.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.api.probes.liveness.timeoutSeconds }}
+            failureThreshold: {{ .Values.api.probes.liveness.failureThreshold }}
+{{ end }}
+
+{{ if .Values.api.probes.readiness.enabled }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.api.probes.readiness.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.api.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.api.probes.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.api.probes.readiness.timeoutSeconds }}
+            failureThreshold: {{ .Values.api.probes.readiness.failureThreshold }}
+{{ end }}
+
+          resources:
+{{ toYaml .Values.api.resources | nindent 12 }}
+
+          env:
+            - name: POSTGRES_HOST
+              value: {{ .Values.postgres.service.name | quote }}
+
+            - name: POSTGRES_PORT
+              value: {{ .Values.postgres.service.port | quote }}
+
+            - name: POSTGRES_DB
+              value: {{ .Values.postgres.auth.database | quote }}
+
+            - name: POSTGRES_USER
+              value: {{ .Values.postgres.auth.username | quote }}
+
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.auth.existingSecret }}
+                  key: {{ .Values.postgres.auth.passwordKey }}
+
+            - name: REDIS_HOST
+              value: {{ .Values.redis.service.name | quote }}
+
+            - name: REDIS_PORT
+              value: {{ .Values.redis.service.port | quote }}
+{{- end }}
