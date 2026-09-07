@@ -1,0 +1,87 @@
+{{- if and .Values.api.enabled .Values.api.prometheusRule.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ .Release.Name }}-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: ecommerce-api
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    release: {{ .Values.api.prometheusRule.prometheusRelease | quote }}
+spec:
+  groups:
+    - name: ecommerce-api.rules
+      rules:
+        - alert: EcommerceApiDown
+          expr: |
+            (
+              sum(up{
+                namespace={{ .Release.Namespace | quote }},
+                job={{ .Values.api.service.name | quote }}
+              }) == 0
+            )
+            or
+            absent(up{
+              namespace={{ .Release.Namespace | quote }},
+              job={{ .Values.api.service.name | quote }}
+            })
+          for: {{ .Values.api.prometheusRule.apiDown.for | quote }}
+          labels:
+            severity: critical
+          annotations:
+            summary: E-Commerce API is unavailable
+            description: Prometheus cannot scrape any E-Commerce API target.
+
+        - alert: EcommerceApiHigh5xxErrorRate
+          expr: |
+            (
+              100 *
+              sum(rate(http_requests_total{
+                namespace={{ .Release.Namespace | quote }},
+                job={{ .Values.api.service.name | quote }},
+                status=~"5.."
+              }[{{ .Values.api.prometheusRule.highErrorRate.window }}]))
+              /
+              sum(rate(http_requests_total{
+                namespace={{ .Release.Namespace | quote }},
+                job={{ .Values.api.service.name | quote }}
+              }[{{ .Values.api.prometheusRule.highErrorRate.window }}]))
+            ) > {{ .Values.api.prometheusRule.highErrorRate.thresholdPercent }}
+            and
+            sum(increase(http_requests_total{
+              namespace={{ .Release.Namespace | quote }},
+              job={{ .Values.api.service.name | quote }}
+            }[{{ .Values.api.prometheusRule.highErrorRate.window }}]))
+            >= {{ .Values.api.prometheusRule.highErrorRate.minimumRequests }}
+          for: {{ .Values.api.prometheusRule.highErrorRate.for | quote }}
+          labels:
+            severity: warning
+          annotations:
+            summary: E-Commerce API 5xx error rate is high
+            description: The 5xx error rate is above the configured threshold while request volume is sufficient.
+
+        - alert: EcommerceApiHighP95Latency
+          expr: |
+            histogram_quantile(
+              0.95,
+              sum by (le) (
+                rate(http_request_duration_seconds_bucket{
+                  namespace={{ .Release.Namespace | quote }},
+                  job={{ .Values.api.service.name | quote }}
+                }[{{ .Values.api.prometheusRule.highLatency.window }}])
+              )
+            ) > {{ .Values.api.prometheusRule.highLatency.thresholdSeconds }}
+            and
+            sum(increase(http_requests_total{
+              namespace={{ .Release.Namespace | quote }},
+              job={{ .Values.api.service.name | quote }}
+            }[{{ .Values.api.prometheusRule.highLatency.window }}]))
+            >= {{ .Values.api.prometheusRule.highLatency.minimumRequests }}
+          for: {{ .Values.api.prometheusRule.highLatency.for | quote }}
+          labels:
+            severity: warning
+          annotations:
+            summary: E-Commerce API p95 latency is high
+            description: The p95 request latency is above the configured threshold while request volume is sufficient.
+{{- end }}
