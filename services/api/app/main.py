@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from prometheus_fastapi_instrumentator import Instrumentator
 from sqlalchemy import text
 
 from app.db.database import engine
@@ -115,3 +116,9 @@ def redis_health():
             "redis": False,
             "detail": str(exc),
         }
+
+# Keep monitoring traffic out of application request metrics.
+Instrumentator(
+    should_group_status_codes=False,
+    excluded_handlers=[r"^/metrics$", r"^/live$", r"^/ready$"],
+).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)

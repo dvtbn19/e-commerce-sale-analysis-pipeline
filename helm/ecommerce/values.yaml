@@ -46,10 +46,16 @@ api:
 
   image:
     repository: ecommerce-api
-    tag: "v6"
+    tag: "v7"
     pullPolicy: IfNotPresent
 
   containerPort: 8000
+
+  serviceMonitor:
+    enabled: true
+    prometheusRelease: monitoring
+    interval: 30s
+    scrapeTimeout: 10s
 
   probes:
     liveness:
