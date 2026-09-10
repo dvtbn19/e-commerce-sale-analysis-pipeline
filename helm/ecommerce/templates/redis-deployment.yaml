@@ -35,4 +35,40 @@ spec:
 
           resources:
 {{ toYaml .Values.redis.resources | nindent 12 }}
+
+          {{- if .Values.redis.probes.startup.enabled }}
+          startupProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: {{ .Values.redis.probes.startup.initialDelaySeconds }}
+            periodSeconds: {{ .Values.redis.probes.startup.periodSeconds }}
+            timeoutSeconds: {{ .Values.redis.probes.startup.timeoutSeconds }}
+            failureThreshold: {{ .Values.redis.probes.startup.failureThreshold }}
+          {{- end }}
+
+          {{- if .Values.redis.probes.readiness.enabled }}
+          readinessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: {{ .Values.redis.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.redis.probes.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.redis.probes.readiness.timeoutSeconds }}
+            failureThreshold: {{ .Values.redis.probes.readiness.failureThreshold }}
+          {{- end }}
+
+          {{- if .Values.redis.probes.liveness.enabled }}
+          livenessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: {{ .Values.redis.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.redis.probes.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.redis.probes.liveness.timeoutSeconds }}
+            failureThreshold: {{ .Values.redis.probes.liveness.failureThreshold }}
+          {{- end }}
 {{- end }}

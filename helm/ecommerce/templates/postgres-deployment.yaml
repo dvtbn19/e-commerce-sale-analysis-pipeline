@@ -51,6 +51,63 @@ spec:
           resources:
 {{ toYaml .Values.postgres.resources | nindent 12 }}
 
+          {{- if .Values.postgres.probes.startup.enabled }}
+          startupProbe:
+            exec:
+              command:
+                - pg_isready
+                - -h
+                - "127.0.0.1"
+                - -p
+                - {{ .Values.postgres.service.port | quote }}
+                - -U
+                - {{ .Values.postgres.auth.username | quote }}
+                - -d
+                - {{ .Values.postgres.auth.database | quote }}
+            initialDelaySeconds: {{ .Values.postgres.probes.startup.initialDelaySeconds }}
+            periodSeconds: {{ .Values.postgres.probes.startup.periodSeconds }}
+            timeoutSeconds: {{ .Values.postgres.probes.startup.timeoutSeconds }}
+            failureThreshold: {{ .Values.postgres.probes.startup.failureThreshold }}
+          {{- end }}
+
+          {{- if .Values.postgres.probes.readiness.enabled }}
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -h
+                - "127.0.0.1"
+                - -p
+                - {{ .Values.postgres.service.port | quote }}
+                - -U
+                - {{ .Values.postgres.auth.username | quote }}
+                - -d
+                - {{ .Values.postgres.auth.database | quote }}
+            initialDelaySeconds: {{ .Values.postgres.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.postgres.probes.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.postgres.probes.readiness.timeoutSeconds }}
+            failureThreshold: {{ .Values.postgres.probes.readiness.failureThreshold }}
+          {{- end }}
+
+          {{- if .Values.postgres.probes.liveness.enabled }}
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -h
+                - "127.0.0.1"
+                - -p
+                - {{ .Values.postgres.service.port | quote }}
+                - -U
+                - {{ .Values.postgres.auth.username | quote }}
+                - -d
+                - {{ .Values.postgres.auth.database | quote }}
+            initialDelaySeconds: {{ .Values.postgres.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.postgres.probes.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.postgres.probes.liveness.timeoutSeconds }}
+            failureThreshold: {{ .Values.postgres.probes.liveness.failureThreshold }}
+          {{- end }}
+
           {{- if .Values.postgres.persistence.enabled }}
           volumeMounts:
             - name: postgres-storage
