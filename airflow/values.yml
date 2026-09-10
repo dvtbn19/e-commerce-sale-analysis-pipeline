@@ -9,11 +9,92 @@ images:
   airflow:
     pullPolicy: IfNotPresent
 
+scheduler:
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "768Mi"
+    limits:
+      cpu: "1500m"
+      memory: "1Gi"
+
+  logGroomerSidecar:
+    resources:
+      requests:
+        cpu: "5m"
+        memory: "16Mi"
+      limits:
+        cpu: "50m"
+        memory: "64Mi"
+
+dagProcessor:
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "512Mi"
+    limits:
+      cpu: "500m"
+      memory: "768Mi"
+
+  logGroomerSidecar:
+    resources:
+      requests:
+        cpu: "5m"
+        memory: "16Mi"
+      limits:
+        cpu: "50m"
+        memory: "64Mi"
+
+triggerer:
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "512Mi"
+    limits:
+      cpu: "300m"
+      memory: "768Mi"
+
+  logGroomerSidecar:
+    resources:
+      requests:
+        cpu: "5m"
+        memory: "16Mi"
+      limits:
+        cpu: "50m"
+        memory: "64Mi"
+
+apiServer:
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "384Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+statsd:
+  resources:
+    requests:
+      cpu: "10m"
+      memory: "32Mi"
+    limits:
+      cpu: "100m"
+      memory: "128Mi"
+
 redis:
   enabled: false
 
 postgresql:
   enabled: true
+
+  primary:
+    resources:
+      requests:
+        cpu: "50m"
+        memory: "128Mi"
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
 
 dags:
   persistence:
