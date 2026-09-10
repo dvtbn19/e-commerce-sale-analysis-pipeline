@@ -118,7 +118,7 @@ if ($CurrentXdsPort -ne $EnvoyXdsPort) {
 
     $GatewayContainer = $null
 
-    for ($i = 0; $i -lt 20; $i++) {
+    for ($i = 0; $i -lt 90; $i++) {
         Start-Sleep -Seconds 1
 
         $GatewayContainer = docker ps --filter "label=io.x-k8s.cloud-provider-kind.gateway.name=ecommerce-local/gateway-system/ecommerce-gateway" --format "{{.Names}}" |
