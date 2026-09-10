@@ -48,6 +48,9 @@ spec:
                   name: {{ .Values.postgres.auth.existingSecret }}
                   key: {{ .Values.postgres.auth.passwordKey }}
 
+          resources:
+{{ toYaml .Values.postgres.resources | nindent 12 }}
+
           {{- if .Values.postgres.persistence.enabled }}
           volumeMounts:
             - name: postgres-storage

@@ -55,4 +55,6 @@ spec:
             failureThreshold: {{ .Values.frontend.probes.readiness.failureThreshold }}
           {{- end }}
 
+          resources:
+{{ toYaml .Values.frontend.resources | nindent 12 }}
 {{- end }}

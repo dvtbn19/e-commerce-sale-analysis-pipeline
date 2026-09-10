@@ -32,4 +32,7 @@ spec:
           ports:
             - name: redis
               containerPort: {{ .Values.redis.service.port }}
+
+          resources:
+{{ toYaml .Values.redis.resources | nindent 12 }}
 {{- end }}
