@@ -78,6 +78,10 @@ def ingest_amazon_sales(
     )
 
     with engine.begin() as connection:
+        connection.execute(
+            text("CREATE SCHEMA IF NOT EXISTS raw;")
+        )
+
         inspector = inspect(connection)
 
         table_exists = inspector.has_table(
