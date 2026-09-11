@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  python-tests:
+    name: API + ingestion tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            services/api/requirements-dev.txt
+            services/ingestion/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          pip install -r services/api/requirements-dev.txt
+          pip install -r services/ingestion/requirements.txt
+
+      - name: Run pytest
+        run: python -m pytest -v
+
+  frontend:
+    name: Frontend lint + build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: services/frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: services/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+  helm:
+    name: Helm lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+
+      - name: Lint chart
+        run: helm lint helm/ecommerce
+
+      - name: Render templates
+        run: helm template ecommerce helm/ecommerce > /dev/null
