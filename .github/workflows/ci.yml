@@ -69,3 +69,52 @@ jobs:
 
       - name: Render templates
         run: helm template ecommerce helm/ecommerce > /dev/null
+
+  dbt-tests:
+    name: dbt tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: ecommerce
+          POSTGRES_USER: ecommerce
+          POSTGRES_PASSWORD: ci_test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ecommerce"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ecommerce
+      POSTGRES_USER: ecommerce
+      POSTGRES_PASSWORD: ci_test_password
+      SOURCE_CSV_PATH: services/ingestion/tests/fixtures/amazon_sales_sample.csv
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install -r services/ingestion/requirements.txt
+          pip install dbt-core==1.12.2 dbt-postgres==1.11.0
+
+      - name: Load sample data
+        run: python -m services.ingestion.load_csv
+
+      - name: dbt run
+        run: dbt run --project-dir dbt/ecommerce --profiles-dir dbt/ecommerce
+
+      - name: dbt test
+        run: dbt test --project-dir dbt/ecommerce --profiles-dir dbt/ecommerce
