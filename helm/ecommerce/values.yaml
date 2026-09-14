@@ -105,7 +105,7 @@ api:
 
   image:
     repository: ecommerce-api
-    tag: "v7"
+    tag: "v8"
     pullPolicy: IfNotPresent
 
   containerPort: 8000
@@ -124,8 +124,10 @@ api:
     # local development hosts built into the application.
     corsAllowedOrigins: []
 
-    # Secret holding the JWT signing key. Required when appEnv is production.
-    existingSecret: ""
+    # Secret holding the JWT signing key. Required when appEnv is production,
+    # and set here too so the cluster never signs tokens with the development
+    # fallback that is published in this repository.
+    existingSecret: api-auth
     jwtSecretKey: jwt-secret
 
   serviceMonitor:
@@ -214,7 +216,7 @@ frontend:
 
   image:
     repository: ecommerce-frontend
-    tag: "v1"
+    tag: "v2"
     pullPolicy: IfNotPresent
 
   containerPort: 80
