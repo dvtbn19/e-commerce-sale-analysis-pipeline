@@ -292,9 +292,17 @@ def create_sale(
 ):
     _check_rate_limit(current_user)
 
+    today = date_type.today()
+
     row = {
         "order_id": f"MANUAL-{uuid.uuid4().hex[:12].upper()}",
-        "date": date_type.today(),
+        # raw.amazon_sales.date is a text column holding the source CSV's
+        # MM-DD-YY format, and the staging model parses it with exactly that
+        # mask, so writing an ISO date here fails the next `dbt run`.
+        # analytics.fct_sales.order_date is a real date column, so it takes
+        # the date object directly rather than a string Postgres has to guess.
+        "raw_date": today.strftime("%m-%d-%y"),
+        "order_date": today,
         "status": "Manual Entry",
         "fulfilment": "Merchant",
         "sales_channel": "Website",
@@ -329,7 +337,7 @@ def create_sale(
                     promotion_ids, b2b, fulfilled_by
                 )
                 VALUES (
-                    :order_id, :date, :status, :fulfilment, :sales_channel,
+                    :order_id, :raw_date, :status, :fulfilment, :sales_channel,
                     :ship_service_level, :style, :sku, :category, :size, :asin,
                     :courier_status, :qty, :currency, :amount, :ship_city,
                     :ship_state, :ship_postal_code, :ship_country,
@@ -353,7 +361,7 @@ def create_sale(
                     promotion_ids, is_b2b, fulfilled_by
                 )
                 VALUES (
-                    :source_row_id, :order_id, :date, :status, :fulfilment,
+                    :source_row_id, :order_id, :order_date, :status, :fulfilment,
                     :sales_channel, :ship_service_level, :style, :sku,
                     :category, :size, :asin, :courier_status, :qty,
                     :currency, :amount, :ship_city, :ship_state,

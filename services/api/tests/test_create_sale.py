@@ -1,3 +1,4 @@
+from datetime import date, datetime
 from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
@@ -95,6 +96,37 @@ def test_create_sale_writes_fact_table_and_rebuilds_aggregates():
     assert "INSERT INTO analytics.fct_sales" in sql
     assert "TRUNCATE analytics.sales_summary" in sql
     assert "TRUNCATE analytics.sales_by_category" in sql
+
+
+def test_create_sale_writes_each_date_in_the_format_its_column_expects():
+    """raw.amazon_sales.date is a text column parsed by the dbt staging model
+    with an MM-DD-YY mask, so an ISO date written there does not fail this
+    request -- it fails the next dbt run. analytics.fct_sales.order_date is a
+    real date column and takes the date itself."""
+    _authenticate()
+    mock_engine, connection = _mock_engine()
+
+    with patch("app.routes.sales.engine", mock_engine), patch(
+        "app.routes.sales.redis_client", _mock_redis()
+    ), patch("app.routes.sales.invalidate_sales_cache"):
+        response = client.post("/api/sales", json=VALID_PAYLOAD)
+
+    client.cookies.clear()
+
+    assert response.status_code == 201
+
+    raw_insert, fct_insert = connection.execute.call_args_list[:2]
+
+    assert "INSERT INTO raw.amazon_sales" in str(raw_insert.args[0])
+    assert ":raw_date" in str(raw_insert.args[0])
+
+    assert "INSERT INTO analytics.fct_sales" in str(fct_insert.args[0])
+    assert ":order_date" in str(fct_insert.args[0])
+
+    params = raw_insert.args[1]
+
+    assert datetime.strptime(params["raw_date"], "%m-%d-%y").date() == date.today()
+    assert params["order_date"] == date.today()
 
 
 def test_create_sale_rejects_unknown_category():
