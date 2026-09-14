@@ -19,6 +19,7 @@ Every section below links to something that was actually run and verified, not j
 flowchart LR
     CSV["Amazon Sale Report CSV"] --> ING["services/ingestion"]
     ING --> RAW[("PostgreSQL raw.amazon_sales")]
+    MANUAL[("raw.manual_sales")] --> STG
     RAW --> STG[("dbt: staging.stg_amazon_sales")]
     STG --> FACT[("dbt: analytics.fct_sales")]
     FACT --> SUMM[("analytics.sales_summary")]
@@ -33,7 +34,7 @@ flowchart LR
     GATEWAY --> FRONTEND["React dashboard"]
     USER(["Browser"]) --> GATEWAY
 
-    API -. "authenticated writes" .-> RAW
+    API -. "authenticated writes" .-> MANUAL
     API -. rebuild .-> SUMM
 
     AIRFLOW["Airflow DAG"] -. orchestrates .-> ING
@@ -184,13 +185,17 @@ Setting `api.auth.appEnv: production` in the chart makes both `AUTH_JWT_SECRET` 
 
 ### What a write actually does
 
-`POST /api/sales` is not a plain insert. In one transaction it writes the row to `raw.amazon_sales` (the source of truth, so the next `dbt run` does not erase it) and the equivalent row to `analytics.fct_sales`, then rebuilds `analytics.sales_summary` and `analytics.sales_by_category` with the same SQL as the dbt models. Afterwards it invalidates the Redis cache keys. The result is that a new sale shows up in the dashboard immediately rather than at the next pipeline run.
+User-entered sales go to **`raw.manual_sales`**, a table of their own — never to `raw.amazon_sales`. That separation is the whole design, and it exists because the obvious alternative is silently destructive: every CSV ingest truncates `raw.amazon_sales` and reloads it, so a sale written there is accepted, returns `201`, appears on the dashboard, and is then erased by the next Airflow run — which reports success, because the reloaded row count matches the CSV exactly. Keeping the two sources in separate tables means the CSV loader's truncate-and-reload stays correct as written, rather than becoming a special case that has to remember what not to delete.
 
-Writes are validated against the same nine categories the dbt `accepted_values` test enforces, so a manual entry can never break the pipeline it feeds. They are also rate-limited to 20 per minute per user through Redis — defence in depth, since a shared or compromised account should not be able to hammer the database.
+The two sources converge in `stg_amazon_sales`, which unions them. Everything downstream — `fct_sales`, both aggregates, every dbt test — treats them identically. `raw.manual_sales` uses proper column types rather than the CSV table's all-text columns, and its identity ids start at 1,000,000,000 so the two sources share one `source_row_id` space without colliding. It also records `created_by`, which the CSV schema had nowhere to put.
 
-Writing into a raw layer means matching the raw layer's conventions, not the API's. `raw.amazon_sales.date` is a text column holding the source CSV's `MM-DD-YY` strings, and the staging model parses it with exactly that mask — so an ISO date written there is accepted by Postgres and then kills the next `dbt run`. The endpoint formats that column to match the CSV and passes a real date only to `analytics.fct_sales`, where the column is typed. Both a pytest regression test and a dbt `assert_raw_date_format` test now guard this, the latter so bad data is reported by `dbt test` instead of crashing `dbt run`.
+`POST /api/sales` is not a plain insert. In one transaction it writes to `raw.manual_sales` and writes the same row straight into `analytics.fct_sales`, then rebuilds `analytics.sales_summary` and `analytics.sales_by_category` using the same SQL as the dbt models, and finally invalidates the Redis cache keys. A new sale therefore appears in the dashboard immediately instead of at the next pipeline run, while `raw` remains the source of truth that `dbt run` rebuilds from.
 
-Verified end to end: with five API-written sales in the database, a full `dbt run` rebuilt `analytics.fct_sales` from `raw` and the row count, the distinct `source_row_id` count, and the revenue total were byte-identical before and after — the manual rows survived, were not duplicated, and came back out of the pipeline with correctly parsed dates.
+Writes are validated against the same nine categories the dbt `accepted_values` test enforces, so a manual entry cannot break the pipeline it feeds. They are also rate-limited to 20 per minute per user through Redis — defence in depth, since a shared or compromised account should not be able to hammer the database.
+
+An `assert_raw_date_format` dbt test guards `raw.amazon_sales.date`, whose `MM-DD-YY` text values the staging model parses with exactly that mask. A value in any other format is accepted by Postgres and then kills `dbt run` with a type error; the test reports the offending rows by name during `dbt test` instead.
+
+Verified end to end, not assumed: with API-written sales in the database, the CSV ingest was run twice — truncating and reloading `raw.amazon_sales` both times — and `raw.manual_sales` stayed untouched. A full `dbt run` then rebuilt `analytics.fct_sales` at 128,980 rows with a distinct `source_row_id` count of 128,980 and an unchanged revenue total: the manual rows survived, were not duplicated, and came back through the pipeline correctly typed.
 
 ## Monitoring
 
