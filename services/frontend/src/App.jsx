@@ -1,10 +1,15 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   getSales,
   getSalesByCategory,
   getSalesSummary,
 } from "./api/sales";
+
+import { getCurrentUser, logout } from "./api/auth";
+
+import AddSaleForm from "./components/AddSaleForm";
+import LoginForm from "./components/LoginForm";
 
 import "./App.css";
 
@@ -14,39 +19,58 @@ function App() {
   const [categories, setCategories] = useState([]);
   const [sales, setSales] = useState([]);
 
+  const [currentUser, setCurrentUser] = useState(null);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
 
+  const loadDashboard = useCallback(async () => {
+    try {
+      const [
+        summaryData,
+        categoriesData,
+        salesData,
+      ] = await Promise.all([
+        getSalesSummary(),
+        getSalesByCategory(),
+        getSales(1, 10),
+      ]);
+
+      setSummary(summaryData);
+      setCategories(categoriesData.data);
+      setSales(salesData.data);
+      setError(null);
+
+    } catch (err) {
+      setError(err.message);
+    }
+  }, []);
+
+
   useEffect(() => {
-    async function loadDashboard() {
-      try {
-        setLoading(true);
+    async function loadInitialState() {
+      setLoading(true);
 
-        const [
-          summaryData,
-          categoriesData,
-          salesData,
-        ] = await Promise.all([
-          getSalesSummary(),
-          getSalesByCategory(),
-          getSales(1, 10),
-        ]);
+      // The session check runs alongside the dashboard fetches: a logged-out
+      // visitor still gets the full dashboard, just without the add-sale form.
+      const [, user] = await Promise.all([
+        loadDashboard(),
+        getCurrentUser(),
+      ]);
 
-        setSummary(summaryData);
-        setCategories(categoriesData.data);
-        setSales(salesData.data);
-
-      } catch (err) {
-        setError(err.message);
-
-      } finally {
-        setLoading(false);
-      }
+      setCurrentUser(user);
+      setLoading(false);
     }
 
-    loadDashboard();
-  }, []);
+    loadInitialState();
+  }, [loadDashboard]);
+
+
+  async function handleLogout() {
+    await logout();
+    setCurrentUser(null);
+  }
 
 
   if (loading) {
@@ -66,7 +90,29 @@ function App() {
   return (
     <div className="container">
 
-      <h1>E-Commerce Sales Dashboard</h1>
+      <header className="app-header">
+
+        <h1>E-Commerce Sales Dashboard</h1>
+
+        {currentUser && (
+          <div className="session">
+            <span>
+              Signed in as <strong>{currentUser}</strong>
+            </span>
+
+            <button type="button" onClick={handleLogout}>
+              Log out
+            </button>
+          </div>
+        )}
+
+      </header>
+
+
+      {currentUser
+        ? <AddSaleForm onCreated={loadDashboard} />
+        : <LoginForm onLoggedIn={setCurrentUser} />}
+
 
       <section className="summary-grid">
 

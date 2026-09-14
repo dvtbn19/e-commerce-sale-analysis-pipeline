@@ -68,6 +68,134 @@ tbody tr:hover {
   background: #f7f7f7;
 }
 
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 30px;
+}
+
+.app-header h1 {
+  margin: 0;
+}
+
+.session {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #555;
+}
+
+.panel {
+  background: white;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.panel h2 {
+  margin-top: 0;
+}
+
+.panel-hint {
+  margin-top: -8px;
+  color: #666;
+}
+
+.form {
+  display: grid;
+  gap: 16px;
+  max-width: 360px;
+}
+
+.form-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  max-width: none;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field span {
+  font-size: 14px;
+  color: #555;
+}
+
+.field em {
+  color: #999;
+  font-style: normal;
+}
+
+.field input,
+.field select {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 15px;
+  font-family: inherit;
+  background: white;
+  color: inherit;
+}
+
+.field input:focus,
+.field select:focus {
+  outline: 2px solid #2b6cb0;
+  outline-offset: 1px;
+  border-color: #2b6cb0;
+}
+
+.form-actions {
+  display: flex;
+  align-items: flex-end;
+}
+
+button {
+  padding: 10px 18px;
+  border: none;
+  border-radius: 6px;
+  background: #2b6cb0;
+  color: white;
+  font-size: 15px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: #24598f;
+}
+
+button:disabled {
+  background: #9db8d4;
+  cursor: default;
+}
+
+.session button {
+  background: transparent;
+  color: #2b6cb0;
+  border: 1px solid #cbd5e0;
+  padding: 6px 14px;
+  font-size: 14px;
+}
+
+.session button:hover:not(:disabled) {
+  background: #edf2f7;
+}
+
+.form-error {
+  margin-bottom: 0;
+  color: #c53030;
+}
+
+.form-success {
+  margin-bottom: 0;
+  color: #276749;
+}
+
 @media (max-width: 900px) {
   .summary-grid {
     grid-template-columns: 1fr;
@@ -79,5 +207,9 @@ tbody tr:hover {
 
   table {
     font-size: 14px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
   }
 }
