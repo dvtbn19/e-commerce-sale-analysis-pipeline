@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date
 from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
@@ -92,17 +92,17 @@ def test_create_sale_writes_fact_table_and_rebuilds_aggregates():
 
     sql = _executed_sql(connection)
 
-    assert "INSERT INTO raw.amazon_sales" in sql
+    assert "INSERT INTO raw.manual_sales" in sql
     assert "INSERT INTO analytics.fct_sales" in sql
     assert "TRUNCATE analytics.sales_summary" in sql
     assert "TRUNCATE analytics.sales_by_category" in sql
 
 
-def test_create_sale_writes_each_date_in_the_format_its_column_expects():
-    """raw.amazon_sales.date is a text column parsed by the dbt staging model
-    with an MM-DD-YY mask, so an ISO date written there does not fail this
-    request -- it fails the next dbt run. analytics.fct_sales.order_date is a
-    real date column and takes the date itself."""
+def test_create_sale_never_writes_to_the_csv_table():
+    """Every CSV ingest truncates and reloads raw.amazon_sales, so a sale
+    written there survives the request and is then destroyed by the next
+    pipeline run. Writes must land in raw.manual_sales instead, which the
+    staging model unions in."""
     _authenticate()
     mock_engine, connection = _mock_engine()
 
@@ -115,18 +115,15 @@ def test_create_sale_writes_each_date_in_the_format_its_column_expects():
 
     assert response.status_code == 201
 
-    raw_insert, fct_insert = connection.execute.call_args_list[:2]
+    sql = _executed_sql(connection)
 
-    assert "INSERT INTO raw.amazon_sales" in str(raw_insert.args[0])
-    assert ":raw_date" in str(raw_insert.args[0])
+    assert "INSERT INTO raw.manual_sales" in sql
+    assert "raw.amazon_sales" not in sql
 
-    assert "INSERT INTO analytics.fct_sales" in str(fct_insert.args[0])
-    assert ":order_date" in str(fct_insert.args[0])
+    params = connection.execute.call_args_list[0].args[1]
 
-    params = raw_insert.args[1]
-
-    assert datetime.strptime(params["raw_date"], "%m-%d-%y").date() == date.today()
     assert params["order_date"] == date.today()
+    assert params["created_by"] == "admin"
 
 
 def test_create_sale_rejects_unknown_category():

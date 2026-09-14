@@ -296,77 +296,61 @@ def create_sale(
 
     row = {
         "order_id": f"MANUAL-{uuid.uuid4().hex[:12].upper()}",
-        # raw.amazon_sales.date is a text column holding the source CSV's
-        # MM-DD-YY format, and the staging model parses it with exactly that
-        # mask, so writing an ISO date here fails the next `dbt run`.
-        # analytics.fct_sales.order_date is a real date column, so it takes
-        # the date object directly rather than a string Postgres has to guess.
-        "raw_date": today.strftime("%m-%d-%y"),
         "order_date": today,
         "status": "Manual Entry",
         "fulfilment": "Merchant",
         "sales_channel": "Website",
-        "ship_service_level": None,
-        "style": None,
-        "sku": None,
         "category": payload.category.value,
-        "size": None,
-        "asin": None,
-        "courier_status": None,
-        "qty": payload.quantity,
+        "quantity": payload.quantity,
         "currency": "INR",
         "amount": payload.amount,
         "ship_city": payload.ship_city,
         "ship_state": payload.ship_state,
-        "ship_postal_code": None,
-        "ship_country": None,
-        "promotion_ids": None,
-        "b2b": False,
-        "fulfilled_by": None,
+        "is_b2b": False,
+        "created_by": current_user,
     }
 
     with engine.begin() as connection:
+        # Writes go to raw.manual_sales, never to raw.amazon_sales: the CSV
+        # loader truncates and reloads its own table on every pipeline run, so
+        # a row written there would be destroyed the next time Airflow runs.
+        # The staging model unions the two, which is where they converge.
         result = connection.execute(
             text(
                 """
-                INSERT INTO raw.amazon_sales (
-                    order_id, date, status, fulfilment, sales_channel,
-                    ship_service_level, style, sku, category, size, asin,
-                    courier_status, qty, currency, amount, ship_city,
-                    ship_state, ship_postal_code, ship_country,
-                    promotion_ids, b2b, fulfilled_by
+                INSERT INTO raw.manual_sales (
+                    order_id, order_date, status, fulfilment, sales_channel,
+                    category, quantity, currency, amount, ship_city,
+                    ship_state, is_b2b, created_by
                 )
                 VALUES (
-                    :order_id, :raw_date, :status, :fulfilment, :sales_channel,
-                    :ship_service_level, :style, :sku, :category, :size, :asin,
-                    :courier_status, :qty, :currency, :amount, :ship_city,
-                    :ship_state, :ship_postal_code, :ship_country,
-                    :promotion_ids, :b2b, :fulfilled_by
+                    :order_id, :order_date, :status, :fulfilment,
+                    :sales_channel, :category, :quantity, :currency, :amount,
+                    :ship_city, :ship_state, :is_b2b, :created_by
                 )
-                RETURNING index
+                RETURNING id
                 """
             ),
             row,
         )
         source_row_id = result.scalar_one()
 
+        # The same row is written straight into the fact table as well, so the
+        # dashboard reflects it immediately instead of at the next dbt run.
+        # Columns the form does not collect are left to default to NULL, which
+        # is exactly what the staging model produces for them.
         connection.execute(
             text(
                 """
                 INSERT INTO analytics.fct_sales (
                     source_row_id, order_id, order_date, status, fulfilment,
-                    sales_channel, ship_service_level, style, sku, category,
-                    size, asin, courier_status, quantity, currency, amount,
-                    ship_city, ship_state, ship_postal_code, ship_country,
-                    promotion_ids, is_b2b, fulfilled_by
+                    sales_channel, category, quantity, currency, amount,
+                    ship_city, ship_state, is_b2b
                 )
                 VALUES (
-                    :source_row_id, :order_id, :order_date, :status, :fulfilment,
-                    :sales_channel, :ship_service_level, :style, :sku,
-                    :category, :size, :asin, :courier_status, :qty,
-                    :currency, :amount, :ship_city, :ship_state,
-                    :ship_postal_code, :ship_country, :promotion_ids,
-                    :b2b, :fulfilled_by
+                    :source_row_id, :order_id, :order_date, :status,
+                    :fulfilment, :sales_channel, :category, :quantity,
+                    :currency, :amount, :ship_city, :ship_state, :is_b2b
                 )
                 """
             ),

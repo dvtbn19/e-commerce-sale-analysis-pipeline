@@ -105,7 +105,7 @@ api:
 
   image:
     repository: ecommerce-api
-    tag: "v8"
+    tag: "v9"
     pullPolicy: IfNotPresent
 
   containerPort: 8000

@@ -1,7 +1,12 @@
+-- The staging model unions the CSV dump with sales entered through the API,
+-- so "the raw row count" is the sum of both raw tables, not just the CSV one.
 with raw_count as (
 
-    select count(*) as row_count
-    from {{ source('ecommerce_raw', 'amazon_sales') }}
+    select
+        (select count(*) from {{ source('ecommerce_raw', 'amazon_sales') }})
+        +
+        (select count(*) from {{ source('ecommerce_raw', 'manual_sales') }})
+        as row_count
 
 ),
 

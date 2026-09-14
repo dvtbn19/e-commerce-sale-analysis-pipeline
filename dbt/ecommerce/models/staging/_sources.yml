@@ -8,3 +8,9 @@ sources:
     tables:
       - name: amazon_sales
         description: Raw Amazon sales data loaded from Amazon Sale Report.csv
+
+      - name: manual_sales
+        description: >
+          Sales entered by authenticated users through the API. Kept separate
+          from amazon_sales so that the CSV load can keep truncating and
+          reloading its own table without destroying user-entered rows.

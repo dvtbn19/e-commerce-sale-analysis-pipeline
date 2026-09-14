@@ -82,6 +82,41 @@ def ingest_amazon_sales(
             text("CREATE SCHEMA IF NOT EXISTS raw;")
         )
 
+        # raw.manual_sales holds sales entered through the API, kept apart from
+        # the CSV dump so that truncating and reloading raw.amazon_sales below
+        # stays a correct operation instead of destroying user-entered data.
+        # It is created here because this is where the raw schema is
+        # bootstrapped, and the staging model reads both tables.
+        #
+        # Unlike amazon_sales, which mirrors the CSV's text columns verbatim,
+        # this table is ours to define, so its columns are properly typed.
+        # Identity ids start far above the CSV's row indexes so that the two
+        # sources can share a single source_row_id space without colliding.
+        connection.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS raw.manual_sales (
+                    id bigint GENERATED ALWAYS AS IDENTITY
+                        (START WITH 1000000000) PRIMARY KEY,
+                    order_id text NOT NULL,
+                    order_date date NOT NULL,
+                    status text,
+                    fulfilment text,
+                    sales_channel text,
+                    category text NOT NULL,
+                    quantity integer NOT NULL,
+                    currency text,
+                    amount numeric(18, 2) NOT NULL,
+                    ship_city text,
+                    ship_state text,
+                    is_b2b boolean NOT NULL DEFAULT false,
+                    created_by text NOT NULL,
+                    created_at timestamptz NOT NULL DEFAULT now()
+                );
+                """
+            )
+        )
+
         inspector = inspect(connection)
 
         table_exists = inspector.has_table(

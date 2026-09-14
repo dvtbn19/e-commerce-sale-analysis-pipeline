@@ -65,7 +65,73 @@ cleaned as (
 
     from source
 
+),
+
+-- Sales entered through the API live in their own raw table, so that the CSV
+-- load can truncate and reload raw.amazon_sales without destroying them. They
+-- are typed correctly at rest, so they need casting and trimming only where
+-- the shapes genuinely differ. Columns the form does not collect are filled
+-- with NULL to line the two sources up.
+manual as (
+
+    select
+
+        id as source_row_id,
+
+        order_id,
+
+        order_date,
+
+        status,
+
+        fulfilment,
+
+        sales_channel,
+
+        null::text as ship_service_level,
+
+        null::text as style,
+
+        null::text as sku,
+
+        initcap(
+            nullif(trim(category), '')
+        ) as category,
+
+        null::text as size,
+
+        null::text as asin,
+
+        null::text as courier_status,
+
+        quantity,
+
+        nullif(trim(currency), '') as currency,
+
+        amount,
+
+        nullif(trim(ship_city), '') as ship_city,
+
+        nullif(trim(ship_state), '') as ship_state,
+
+        null::text as ship_postal_code,
+
+        null::text as ship_country,
+
+        null::text as promotion_ids,
+
+        is_b2b,
+
+        null::text as fulfilled_by
+
+    from {{ source('ecommerce_raw', 'manual_sales') }}
+
 )
 
 select *
 from cleaned
+
+union all
+
+select *
+from manual
