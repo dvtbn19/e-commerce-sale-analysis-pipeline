@@ -110,6 +110,24 @@ api:
 
   containerPort: 8000
 
+  auth:
+    # "local" or "production". Setting this to production makes the API refuse
+    # to start without a real JWT secret and an explicit CORS origin list, and
+    # makes `helm template` fail early if either is missing here.
+    appEnv: local
+
+    # The session cookie can only carry the Secure flag over HTTPS, so this
+    # stays false until the production Gateway terminates TLS.
+    cookieSecure: false
+
+    # Origins allowed to call the API with credentials. Empty falls back to the
+    # local development hosts built into the application.
+    corsAllowedOrigins: []
+
+    # Secret holding the JWT signing key. Required when appEnv is production.
+    existingSecret: ""
+    jwtSecretKey: jwt-secret
+
   serviceMonitor:
     enabled: true
     prometheusRelease: monitoring

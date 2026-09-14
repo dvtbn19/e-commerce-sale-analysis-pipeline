@@ -65,7 +65,16 @@ def login(credentials: LoginRequest, response: Response):
 
 @router.post("/logout")
 def logout(response: Response):
-    response.delete_cookie(AUTH_COOKIE_NAME)
+    # The clearing cookie has to carry the same flags as the one that was set,
+    # otherwise the browser treats it as a different cookie and keeps the
+    # session alive.
+    response.delete_cookie(
+        key=AUTH_COOKIE_NAME,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite="lax",
+    )
+
     return {"status": "ok"}
 
 

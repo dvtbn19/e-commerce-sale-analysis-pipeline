@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from prometheus_fastapi_instrumentator import Instrumentator
 from sqlalchemy import text
 
+from app.core.config import CORS_ALLOWED_ORIGINS
 from app.db.database import engine
 from app.routes.sales import router as sales_router
 from app.auth.routes import router as auth_router
@@ -16,11 +17,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://ecommerce.local",
-    ],
+    allow_origins=CORS_ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

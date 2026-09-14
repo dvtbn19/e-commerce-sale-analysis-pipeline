@@ -6,7 +6,26 @@ from fastapi import Cookie, HTTPException, status
 from jose import JWTError, jwt
 
 
-AUTH_JWT_SECRET = os.getenv("AUTH_JWT_SECRET", "dev-insecure-change-me")
+from app.core.config import APP_ENV
+
+
+def _read_jwt_secret() -> str:
+    secret = os.getenv("AUTH_JWT_SECRET")
+
+    if secret:
+        return secret
+
+    if APP_ENV == "production":
+        raise RuntimeError(
+            "AUTH_JWT_SECRET must be set when APP_ENV=production"
+        )
+
+    # The fallback is published in this repository, so it is only ever safe
+    # for local development and the test suite.
+    return "dev-insecure-change-me"
+
+
+AUTH_JWT_SECRET = _read_jwt_secret()
 AUTH_JWT_ALGORITHM = "HS256"
 AUTH_TOKEN_TTL_HOURS = 8
 AUTH_COOKIE_NAME = "access_token"

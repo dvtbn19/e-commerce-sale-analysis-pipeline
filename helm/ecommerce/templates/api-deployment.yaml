@@ -1,4 +1,12 @@
 {{- if .Values.api.enabled }}
+{{- if eq .Values.api.auth.appEnv "production" }}
+{{- if not .Values.api.auth.existingSecret }}
+{{- fail "api.auth.existingSecret is required when api.auth.appEnv is production: the API refuses to start without a real AUTH_JWT_SECRET" }}
+{{- end }}
+{{- if not .Values.api.auth.corsAllowedOrigins }}
+{{- fail "api.auth.corsAllowedOrigins is required when api.auth.appEnv is production" }}
+{{- end }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 
@@ -82,4 +90,23 @@ spec:
 
             - name: REDIS_PORT
               value: {{ .Values.redis.service.port | quote }}
+
+            - name: APP_ENV
+              value: {{ .Values.api.auth.appEnv | quote }}
+
+            - name: AUTH_COOKIE_SECURE
+              value: {{ .Values.api.auth.cookieSecure | quote }}
+
+{{- if .Values.api.auth.corsAllowedOrigins }}
+            - name: CORS_ALLOWED_ORIGINS
+              value: {{ join "," .Values.api.auth.corsAllowedOrigins | quote }}
+{{- end }}
+
+{{- if .Values.api.auth.existingSecret }}
+            - name: AUTH_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.auth.existingSecret }}
+                  key: {{ .Values.api.auth.jwtSecretKey }}
+{{- end }}
 {{- end }}
