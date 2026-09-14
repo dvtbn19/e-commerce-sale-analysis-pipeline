@@ -144,7 +144,7 @@ def get_sales(
                     is_b2b AS b2b,
                     fulfilled_by
                 FROM analytics.fct_sales
-                ORDER BY source_row_id
+                ORDER BY source_row_id DESC
                 LIMIT :limit
                 OFFSET :offset
                 """
