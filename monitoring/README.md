@@ -231,7 +231,7 @@ kubectl get servicemonitor ecommerce-api --namespace ecommerce
 Expected API image:
 
 ```text
-ecommerce-api:v7
+ecommerce-api:v8
 ```
 
 The metrics endpoint must return HTTP `200` and include metrics such as:
