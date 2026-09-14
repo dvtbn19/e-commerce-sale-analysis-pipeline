@@ -3,6 +3,8 @@
 .env.*
 !.env.example
 .secrets/
+# Session cookie jars written by `curl -c` during manual API testing
+cookies.txt
 
 # Python
 .venv/

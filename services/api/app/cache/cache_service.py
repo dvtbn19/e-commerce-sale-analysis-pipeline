@@ -54,3 +54,26 @@ def set_cached_json(
         )
 
         return False
+
+SALES_CACHE_KEYS_TO_CLEAR = (
+    "ecommerce:sales:summary:v1",
+    "ecommerce:sales:categories:v1",
+)
+SALES_LIST_CACHE_PREFIX = "ecommerce:sales:list:v1:*"
+
+
+def invalidate_sales_cache() -> None:
+    try:
+        keys_to_delete = list(SALES_CACHE_KEYS_TO_CLEAR)
+
+        for key in redis_client.scan_iter(
+            match=SALES_LIST_CACHE_PREFIX,
+            count=100,
+        ):
+            keys_to_delete.append(key)
+
+        if keys_to_delete:
+            redis_client.delete(*keys_to_delete)
+
+    except RedisError as exc:
+        logger.warning("Cache invalidation failed: %s", exc)
