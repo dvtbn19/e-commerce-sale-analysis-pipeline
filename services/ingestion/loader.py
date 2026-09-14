@@ -111,6 +111,43 @@ def ingest_amazon_sales(
             method="multi",
         )
 
+        connection.execute(
+            text(
+                "CREATE SEQUENCE IF NOT EXISTS raw.amazon_sales_index_seq;"
+            )
+        )
+
+        connection.execute(
+            text(
+                """
+                ALTER TABLE raw.amazon_sales
+                    ALTER COLUMN index
+                    SET DEFAULT nextval('raw.amazon_sales_index_seq');
+                """
+            )
+        )
+
+        connection.execute(
+            text(
+                """
+                SELECT setval(
+                    'raw.amazon_sales_index_seq',
+                    (SELECT COALESCE(MAX(index), 0) FROM raw.amazon_sales)
+                );
+                """
+            )
+        )
+
+        connection.execute(
+            text(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS
+                    amazon_sales_index_unique_idx
+                    ON raw.amazon_sales (index);
+                """
+            )
+        )
+
     with engine.connect() as connection:
         database_row_count = connection.execute(
             text(
