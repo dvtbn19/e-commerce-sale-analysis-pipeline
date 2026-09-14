@@ -4,6 +4,7 @@ from sqlalchemy import text
 
 from app.db.database import engine
 from app.routes.sales import router as sales_router
+from app.auth.routes import router as auth_router
 from app.cache.redis_client import redis_client
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -26,6 +27,7 @@ app.add_middleware(
 )
 
 app.include_router(sales_router)
+app.include_router(auth_router)
 
 @app.get("/live")
 def liveness():
