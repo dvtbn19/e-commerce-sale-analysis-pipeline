@@ -128,15 +128,15 @@ The Gateway (`k8s/gateway/gateway.yml`) and the Airflow route are kept outside t
 Kind has its own image store, so a locally built image has to be loaded into the cluster before the chart can reference it:
 
 ```powershell
-docker build -t ecommerce-api:v8 services/api
-docker build -t ecommerce-frontend:v2 --build-arg VITE_API_BASE_URL=http://api.ecommerce.local services/frontend
-kind load docker-image ecommerce-api:v8 --name ecommerce-local
-kind load docker-image ecommerce-frontend:v2 --name ecommerce-local
+docker build -t ecommerce-api:v9 services/api
+docker build -t ecommerce-frontend:v3 --build-arg VITE_API_BASE_URL=https://api.ecommerce.vtcons.com services/frontend
+kind load docker-image ecommerce-api:v9 --name ecommerce-local
+kind load docker-image ecommerce-frontend:v3 --name ecommerce-local
 ```
 
 Then bump `api.image.tag` / `frontend.image.tag` in `values.yaml` and run `helm upgrade`.
 
-The frontend's API URL is compiled in by Vite at build time, not read at runtime, so pointing the dashboard at a different API means rebuilding the image — not editing a ConfigMap.
+The frontend's API URL is compiled in by Vite at build time, not read at runtime, so pointing the dashboard at a different API means rebuilding the image — not editing a ConfigMap. That is why the build argument names the public API host: the browser resolves it, so it has to be an address the browser can reach.
 
 If `helm upgrade` fails with `conflict with "kubectl-client-side-apply"`, a field on that resource was once set by hand with `kubectl`, and Helm's server-side apply refuses to overwrite another field manager's field. Re-run with `--force-conflicts` to hand ownership back to the chart. That is the fix, not a workaround — but it is worth treating as a reminder of why chart-managed resources should never be edited with `kubectl` in the first place.
 
@@ -244,11 +244,38 @@ Verified 2026-09-12: a fresh backup restored into a disposable container reprodu
 - Resource requests/limits are set on the API, frontend, PostgreSQL, Redis, and Airflow workloads.
 - PostgreSQL backups are verified restorable (see above), not just assumed to work.
 
-## Scope: local by design
+## Live deployment
 
-This runs entirely on one machine — Kind, reachable through `*.ecommerce.local` hostnames — and is not deployed publicly. That was a deliberate choice, not an unfinished step.
+**<https://ecommerce.vtcons.com>** — the dashboard. The API is at `api.ecommerce.vtcons.com`.
 
-A public deployment was fully planned (a small VPS running k3s, Envoy Gateway, cert-manager for TLS, DNS records on a domain already owned, and a CI job deploying on every push to `main`) and then dropped: the project's purpose is to demonstrate the engineering, and paying to keep a server running adds no evidence that the pipeline works. The application code carries no local-only assumptions — CORS origins, the cookie's `Secure` flag, and the JWT secret are all environment-driven, and `api.auth.appEnv: production` already enforces the stricter rules — so the remaining work would be infrastructure, not rewriting.
+The compute stays on one laptop. A 1 vCPU / 1 GB VPS acts purely as a relay so the site has a public address, because a home connection behind CGNAT has none and no amount of application code can create one.
+
+```mermaid
+flowchart LR
+    USER(["Visitor"]) -->|HTTPS| CADDY["Caddy on the relay VPS<br/>TLS via Let's Encrypt"]
+    CADDY -->|127.0.0.1:8080| FRPS["frps"]
+    FRPS <-.->|"outbound tunnel<br/>opened by the laptop"| FRPC["frpc on the laptop"]
+    FRPC --> GW["Kind Gateway (Envoy)"]
+    GW --> APP["frontend + API + Postgres + Redis"]
+```
+
+The laptop only ever dials **out**, so no port is opened on the home router and the machine is never directly addressable from the internet. The VPS runs nothing but Caddy and `frps` — roughly 50 MB of RAM — and holds no data, so losing it costs a redeploy, not a backup.
+
+| Piece | Where | Notes |
+|---|---|---|
+| DNS | iNET (OneShield) | Two `A` records; the DNS-proxy toggle must stay **off**, or the proxy's own TLS collides with Caddy's |
+| TLS | Caddy on the VPS | Obtained and renewed automatically; no `certbot`, no cron job |
+| Tunnel | `frp` 0.71.0, token-authenticated | `frps` as a systemd unit on the VPS, `frpc` as a Windows scheduled task under `SYSTEM` |
+| Application | Kind on the laptop | Unchanged from local development |
+
+The site is up only while the laptop is on and the pipeline is running; when it is not, Caddy answers `502` rather than the domain failing to resolve. That is the honest trade for paying nothing to host compute.
+
+Two decisions are worth naming:
+
+- **`SameSite=Lax`, not `None`.** `ecommerce.vtcons.com` and `api.ecommerce.vtcons.com` share the registrable domain `vtcons.com`, so the browser treats them as same-site and the session cookie travels without loosening the flag.
+- **One chart serves both hostnames.** Each `HTTPRoute` lists the local host and the public one, so local development and the live site run the same deployment rather than diverging. `api.auth.appEnv: production` then makes `AUTH_JWT_SECRET` and an explicit CORS origin list mandatory, and makes `helm template` fail outright if either is missing — a misconfiguration becomes a template-time error instead of a running service with a publicly known signing key.
+
+Going public was visible within seconds: the first bots hit the domain about one second after the certificate was issued, having read it out of the Certificate Transparency log. Only the dashboard and the API are routed through the tunnel. Airflow, Grafana and Prometheus deliberately are not — they have no real authentication and would be a direct path to the database.
 
 ## Known gaps
 
