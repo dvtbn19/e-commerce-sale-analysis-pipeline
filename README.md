@@ -138,6 +138,24 @@ Then bump `api.image.tag` / `frontend.image.tag` in `values.yaml` and run `helm 
 
 The frontend's API URL is compiled in by Vite at build time, not read at runtime, so pointing the dashboard at a different API means rebuilding the image — not editing a ConfigMap. That is why the build argument names the public API host: the browser resolves it, so it has to be an address the browser can reach.
 
+### Rebuilding Airflow
+
+Airflow does **not** read the repository at runtime. `airflow/Dockerfile` copies `airflow/dags`, `services/`, `dbt/ecommerce/` and the source CSV into its own image, so **any change to the ingestion code or the dbt models needs an Airflow rebuild** — otherwise the scheduled pipeline keeps running the version baked in at build time while the manually-run commands use the current one. That divergence is silent, and it is how a fixed bug can keep firing on the only path that actually runs unattended.
+
+```powershell
+docker build -t ecommerce-airflow:3.3.1-2 -f airflow/Dockerfile .
+kind load docker-image ecommerce-airflow:3.3.1-2 --name ecommerce-local
+# bump defaultAirflowTag in airflow/values.yml to match
+helm repo update apache-airflow
+helm upgrade airflow apache-airflow/airflow --namespace airflow --version 1.22.0 -f airflow/values.yml --wait --timeout 10m
+```
+
+Bump the tag rather than rebuilding over it: `pullPolicy: IfNotPresent` means a same-tag image already on the node is never replaced, so the pods would silently keep the old build.
+
+The root `.dockerignore` matters here. This is the only build whose context is the repository root, and `Dockerfile` copies `services/` wholesale — which includes `services/api/.env.users`, the plaintext account passwords. Without the ignore file those passwords are baked into the image.
+
+`airflow/docker-compose.yml` describes a standalone Airflow that is **not** what runs here; the cluster uses the `apache-airflow/airflow` Helm chart with `airflow/values.yml`, connecting to `postgres-service.ecommerce` in-cluster.
+
 If `helm upgrade` fails with `conflict with "kubectl-client-side-apply"`, a field on that resource was once set by hand with `kubectl`, and Helm's server-side apply refuses to overwrite another field manager's field. Re-run with `--force-conflicts` to hand ownership back to the chart. That is the fix, not a workaround — but it is worth treating as a reminder of why chart-managed resources should never be edited with `kubectl` in the first place.
 
 ## CI/CD
