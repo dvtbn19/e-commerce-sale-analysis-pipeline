@@ -114,15 +114,19 @@ api:
     # "local" or "production". Setting this to production makes the API refuse
     # to start without a real JWT secret and an explicit CORS origin list, and
     # makes `helm template` fail early if either is missing here.
-    appEnv: local
+    appEnv: production
 
-    # The session cookie can only carry the Secure flag over HTTPS, so this
-    # stays false until the production Gateway terminates TLS.
-    cookieSecure: false
+    # Caddy on the relay VPS terminates TLS, so the session cookie carries the
+    # Secure flag. Consequence: logging in over plain http://ecommerce.local no
+    # longer works -- use the HTTPS URL, or override with
+    # --set api.auth.cookieSecure=false when working on auth locally.
+    cookieSecure: true
 
-    # Origins allowed to call the API with credentials. Empty falls back to the
-    # local development hosts built into the application.
-    corsAllowedOrigins: []
+    # Origins allowed to call the API with credentials. Mandatory once appEnv
+    # is production; an empty list fails `helm template` rather than silently
+    # falling back to the local development hosts.
+    corsAllowedOrigins:
+      - https://ecommerce.vtcons.com
 
     # Secret holding the JWT signing key. Required when appEnv is production,
     # and set here too so the cluster never signs tokens with the development
@@ -196,6 +200,11 @@ api:
     enabled: true
     name: ecommerce-api-route
     hostname: api.ecommerce.local
+
+    # Also answered for through the relay VPS, so a single deployment serves
+    # both the local development host and the public domain.
+    extraHostnames:
+      - api.ecommerce.vtcons.com
     path: /
 
 gateway:
@@ -216,7 +225,7 @@ frontend:
 
   image:
     repository: ecommerce-frontend
-    tag: "v2"
+    tag: "v3"
     pullPolicy: IfNotPresent
 
   containerPort: 80
@@ -249,4 +258,7 @@ frontend:
     enabled: true
     name: ecommerce-frontend-route
     hostname: ecommerce.local
+
+    extraHostnames:
+      - ecommerce.vtcons.com
     path: /

@@ -17,6 +17,9 @@ spec:
 
   hostnames:
     - {{ .Values.frontend.route.hostname | quote }}
+{{- range .Values.frontend.route.extraHostnames }}
+    - {{ . | quote }}
+{{- end }}
 
   rules:
     - matches:
