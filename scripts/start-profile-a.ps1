@@ -1,6 +1,9 @@
 param(
     [string]$ExpectedContext = "kind-ecommerce-local",
-    [string]$CloudProviderKindPath = "C:\tools\cloud-provider-kind\cloud-provider-kind.exe"
+    [string]$CloudProviderKindPath = "C:\tools\cloud-provider-kind\cloud-provider-kind.exe",
+    [string]$PublicUrl = "https://ecommerce.vtcons.com",
+    [string]$PublicApiUrl = "https://api.ecommerce.vtcons.com/live",
+    [string]$TunnelTaskName = "frpc-ecommerce"
 )
 
 $ErrorActionPreference = "Stop"
@@ -261,4 +264,60 @@ if ($MetricsStatus -ne "200") {
 }
 
 Write-Host "API metrics are available."
+
+Write-Host "[13] Checking the relay tunnel..."
+
+$Frpc = Get-Process frpc -ErrorAction SilentlyContinue
+
+if (-not $Frpc) {
+    Write-Host "frpc is not running. Starting scheduled task $TunnelTaskName..."
+
+    $Process = Start-Process schtasks.exe -Verb RunAs -Wait -PassThru -ArgumentList '/Run','/TN',$TunnelTaskName
+
+    if ($Process.ExitCode -ne 0) {
+        throw "Failed to start the scheduled task $TunnelTaskName."
+    }
+
+    $Frpc = $null
+
+    for ($i = 0; $i -lt 20; $i++) {
+        Start-Sleep -Seconds 1
+
+        $Frpc = Get-Process frpc -ErrorAction SilentlyContinue
+
+        if ($Frpc) {
+            break
+        }
+    }
+
+    if (-not $Frpc) {
+        throw "frpc did not start."
+    }
+
+    Write-Host "frpc started."
+} else {
+    Write-Host "frpc is running."
+}
+
+Write-Host "[14] Checking the public site..."
+
+# A running frpc is not evidence that visitors can reach anything: it connects
+# to the relay whether or not the local Gateway is serving. Only a request that
+# travels the whole path proves the site is actually up.
+$PublicStatus = curl.exe -s -o NUL -w "%{http_code}" --max-time 15 $PublicUrl
+
+if ($PublicStatus -ne "200") {
+    throw "Public site check failed with HTTP $PublicStatus. 502 means the request reached the relay VPS but the local Gateway did not answer; 000 means the relay itself was unreachable."
+}
+
+Write-Host "Public site is reachable."
+
+$PublicApiStatus = curl.exe -s -o NUL -w "%{http_code}" --max-time 15 $PublicApiUrl
+
+if ($PublicApiStatus -ne "200") {
+    throw "Public API check failed with HTTP $PublicApiStatus."
+}
+
+Write-Host "Public API is reachable."
+
 Write-Host "Profile A is healthy."

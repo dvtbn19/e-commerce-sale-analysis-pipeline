@@ -252,7 +252,13 @@ docker run --rm `
 
 **Restoring into the real `postgres-service` overwrites existing data — confirm the target before running it there.** Restoring into a disposable container first, on a different local port, is the safe way to verify a backup without touching real data.
 
-Verified 2026-09-12: a fresh backup restored into a disposable container reproduced the live database exactly — `raw.amazon_sales` and `analytics.fct_sales` both at 128,975 rows in both the source and the restored copy.
+Verified 2026-09-27: a fresh backup restored into a disposable container reproduced the live database exactly — `raw.amazon_sales` 128,975, `raw.manual_sales` 6, `analytics.fct_sales` 128,981, `auth.users` 6, and an identical revenue total in both the source and the restored copy.
+
+A backup is only as current as the schema it was taken from. The previous verified dump predated the `auth` schema and `raw.manual_sales`, so restoring it would have produced a database nobody could log into with every user-entered sale gone — while still showing 128,975 rows in `raw.amazon_sales` and rendering a plausible dashboard. Re-take and re-verify a backup whenever the schema changes, and check the dump's table of contents rather than trusting that the file exists:
+
+```powershell
+docker run --rm -v "${PWD}ackups:/backups" postgres:16 pg_restore --list /backups/<file>.dump
+```
 
 ## Reliability
 
